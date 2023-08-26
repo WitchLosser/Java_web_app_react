@@ -1,119 +1,113 @@
-import { useEffect } from "react";
+import { ChangeEvent, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useFormik } from "formik";
-import * as Yup from "yup";
-import axios from "axios";
 import { ICategoryEdit } from "./types";
+import http_common from "../../../http_common";
+import { ICategoryItem } from "../list/types";
+import { APP_ENV } from "../../../env";
+import defaultImage from '../../../assets/default-image.jpg';
 
 const CategoryEditPage = () => {
   const navigate = useNavigate();
+  const {id} = useParams();
+  const [oldImage, setOldImage] = useState<string>("");
 
-  const { id } = useParams();
-
-  let init: ICategoryEdit = {
-    name: "",
-    image: "",
-    description: "",
+  const init: ICategoryEdit = {
+      id: id ? Number(id) : 0,
+      name: "",
+      image: null,
+      description: ""
   };
-  useEffect(() => {
-    axios
-      .get<ICategoryEdit>(`http://localhost:8080/category/${id}`)
-      .then((response) => {
-        const category = response.data;
-        formik.setValues(category);
-      })
-      .catch((error) => {
-        console.error(error);
-        // Handle error
-      });
-  }, [id]);
-
-  const validationSchema = Yup.object({
-    name: Yup.string().required("Name is required"),
-    image: Yup.string().required("Image is required"),
-    description: Yup.string().required("Description is required"),
-  });
 
   const onFormikSubmit = async (values: ICategoryEdit) => {
-    try {
-      let res = await axios.put(
-        `http://localhost:8080/category/${id}`,
-        values
-      );
-      console.log("updated!");
-      navigate("/");
-    } catch {
-      console.log("Server error");
-    }
-  };
+      //console.log("Send Formik Data", values);
+      try {
+          const result = await http_common.put(`/category/${id}`, values, {
+              headers: {
+                  "Content-Type": "multipart/form-data",
+              },
+          });
+          navigate("../..");
+      } catch {
+          console.log("Server error");
+      }
+  }
 
   const formik = useFormik({
-    initialValues: init,
-    validationSchema: validationSchema,
-    onSubmit: onFormikSubmit,
+      initialValues: init,
+      onSubmit: onFormikSubmit
   });
-  const { values, handleChange, handleSubmit } = formik;
+
+  const {values, handleChange, handleSubmit, setFieldValue} = formik;
+
+  useEffect(() => {
+      http_common.get<ICategoryItem>(`category/${id}`)
+          .then(resp => {
+              const {data} = resp;
+              setFieldValue("name", data.name);
+              //setFieldValue("image", data.image);
+              //посилання на фото, яке було у категорії
+              setOldImage(`${APP_ENV.BASE_URL}/resized/300x300_${data.image}`);
+              setFieldValue("description", data.description);
+          });
+  },[id]);
+
+  const onChangeFileHandler = (e: ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if(files)
+      {
+          const file = files[0];
+          if(file) {
+              //Перевірка на тип обраного файлу - допустимий тип jpeg, png, gif
+              const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif"];
+              if (!allowedTypes.includes(file.type)) {
+                  alert("Не допустимий тип файлу");
+                  return;
+              }
+              setFieldValue(e.target.name, file);
+          }
+      }
+  }
+
+  const imgView = oldImage ? oldImage : defaultImage;
+
   return (
-    <>
-      <h1 className="text-center">Змінити категорію</h1>
-      <div className="container">
-        <form className="col-md-8 offset-md-2" onSubmit={handleSubmit}>
-          <div className="mb-3">
-            <label htmlFor="name" className="form-label">
-              Назва
-            </label>
-            <input
-              type="text"
-              className="form-control"
-              id="name"
-              value={values.name}
-              onChange={handleChange}
-              name="name"
-            />
-          </div>
+      <>
+          <h1 className="text-center">Змінить категорію</h1>
+          <div className="container">
+              <form className="col-md-8 offset-md-2" onSubmit={handleSubmit}>
+                  <div className="mb-3">
+                      <label htmlFor="name" className="form-label">Назва</label>
+                      <input type="text" className="form-control" id="name"
+                             value={values.name}
+                             onChange={handleChange}
+                             name="name"/>
+                  </div>
 
-          <div className="mb-3">
-            <label htmlFor="image" className="form-label">
-              Фото
-            </label>
-            <input
-              type="text"
-              className="form-control"
-              id="image"
-              value={values.image}
-              onChange={handleChange}
-              name="image"
-            />
-          </div>
+                  <div className="mb-3">
+                      <label htmlFor="image" className="form-label">
+                          <img src={values.image==null ? imgView : URL.createObjectURL(values.image)}
+                               alt="фото"
+                               width={200}
+                               style={{cursor: "pointer"}}/>
+                      </label>
+                      <input type="file" className="form-control d-none" id="image"
+                             onChange={onChangeFileHandler}
+                             name="image"/>
+                  </div>
 
-          <div className="mb-3">
-            <label htmlFor="description" className="form-label">
-              Опис
-            </label>
-            <input
-              type="text"
-              className="form-control"
-              id="description"
-              value={values.description}
-              onChange={handleChange}
-              name="description"
-            />
-          </div>
-            <button
-              onClick={() => {
-                navigate("/");
-              }}
-              className="btn btn-secondary "
-            >
-              Скасувати
-            </button>
-            <button type="submit" className="btn btn-primary">
-              Змінити
-            </button>
+                  <div className="mb-3">
+                      <label htmlFor="description" className="form-label">Опис</label>
+                      <input type="text" className="form-control" id="description"
+                             value={values.description}
+                             onChange={handleChange}
+                             name="description"/>
+                  </div>
 
-        </form>
-      </div>
-    </>
+                  <button type="submit" className="btn btn-primary">Зберегти</button>
+              </form>
+          </div>
+      </>
   );
 };
 

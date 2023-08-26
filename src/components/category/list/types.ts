@@ -1,6 +1,6 @@
-export interface ICategoryEdit{
+export interface ICategoryItem{
     id: number;
     name: string;
-    image: File | null;
+    image: string;
     description: string;
 }
