@@ -35,7 +35,7 @@ const CategoryListPage = () => {
         <td>{c.name}</td>
         <td>
           <img
-            src={`${APP_ENV.BASE_URL}/resized/150x150_${c.image}`}
+            src={`${APP_ENV.BASE_URL}/uploading/150_${c.image}`}
             alt="фото"
             width={50}
           />

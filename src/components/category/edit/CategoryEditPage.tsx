@@ -47,7 +47,7 @@ const CategoryEditPage = () => {
               setFieldValue("name", data.name);
               //setFieldValue("image", data.image);
               //посилання на фото, яке було у категорії
-              setOldImage(`${APP_ENV.BASE_URL}/resized/300x300_${data.image}`);
+              setOldImage(`${APP_ENV.BASE_URL}/uploading/600_${data.image}`);
               setFieldValue("description", data.description);
           });
   },[id]);
