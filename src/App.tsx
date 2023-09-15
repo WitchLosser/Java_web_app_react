@@ -7,6 +7,8 @@ import DefaultLayout from './components/containers/default/DefaultLayout';
 import ProductCreatePage from './components/product/create/ProductCreatePage';
 import ProductListPage from './components/product/list/ProductListPage';
 import ProductEditPage from './components/product/edit/ProductEditPage';
+import LoginPage from './components/auth/login/LoginPage';
+import RegisterPage from './components/auth/register/RegisterPage';
 
 
 function App() {
@@ -16,6 +18,9 @@ function App() {
     <Routes>
       <Route path="/" element={<DefaultLayout/>}>
         <Route index element={<CategoryListPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+
         <Route path="category/list" element={<CategoryListPage />} />
         <Route path="/create" element={<CategoryCreatePage />} />
         <Route path="category/edit/:id" element={<CategoryEditPage />} />
