@@ -1,9 +1,9 @@
 import {useEffect, useState} from "react";
 import {Link} from "react-router-dom";
-import {ICategoryItem} from "./types.ts";
-import http_common from "../../../http_common.ts";
-import { APP_ENV } from "../../../env/index.ts";
-import ModalDelete from "../../common/ModalDelete.tsx";
+import { APP_ENV } from "../../../../env/index.ts";
+import ModalDelete from "../../../common/ModalDelete.tsx";
+import { ICategoryItem } from "../../../category/types.ts";
+import http_common from "../../../../http_common.ts";
 // import ModalDelete from "../../../common/ModalDelete.tsx";
 
 const CategoryListPage = () => {

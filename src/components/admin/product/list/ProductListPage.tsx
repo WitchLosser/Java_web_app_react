@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 
-import { IProductItem } from "../types";
-import http_common from "../../../http_common";
-import ListGroup from "../../common/ListGroup";
+import { IProductItem } from "../../../product/types";
+import http_common from "../../../../http_common";
+import ListGroup from "../../../common/ListGroup";
 
 const ProductListPage = () => {
   const [list, setList] = useState<Array<IProductItem>>([]);

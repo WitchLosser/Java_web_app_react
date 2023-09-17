@@ -1,19 +1,20 @@
-import { ChangeEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { FaTrash } from "react-icons/fa";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { IPorductEdit, IProductItem } from "../types";
-import { ICategoryItem } from "../../category/list/types";
-import http_common from "../../../http_common";
-import { APP_ENV } from "../../../env";
-import InputGroup from "../../common/InputGroup";
-import SelectGroup from "../../common/SelectGroup";
-import InputFileGroup from "../../common/InputFileGroup";
-import TextGroup from "../../common/TextGroup";
+import { useFormik } from "formik";
+import * as Yup from "yup";
+import http_common from "../../../../http_common";
+import InputGroup from "../../../common/InputGroup";
+import SelectGroup from "../../../common/SelectGroup";
+import InputFileGroup from "../../../common/InputFileGroup";
+import TextGroup from "../../../common/TextGroup";
+import { ICategoryItem } from "../../../category/types";
+import { IPorductEdit, IProductItem } from "../../../product/types";
+import { APP_ENV } from "../../../../env";
 
 const ProductEditPage = () => {
   const navigator = useNavigate();
   const { id } = useParams();
-  console.log("id", id);
 
   const [model, setModel] = useState<IPorductEdit>({
     name: "",
@@ -25,12 +26,10 @@ const ProductEditPage = () => {
   });
 
   const [oldImages, setOldImages] = useState<string[]>([]);
-
   const [categories, setCategories] = useState<Array<ICategoryItem>>([]);
 
   useEffect(() => {
     http_common.get<Array<ICategoryItem>>(`api/categories`).then((resp) => {
-      //console.log("resp = ", resp);
       setCategories(resp.data);
     });
 
@@ -38,35 +37,41 @@ const ProductEditPage = () => {
       const { files, name, price, category_id, description } = resp.data;
       setOldImages(files);
       setModel({ ...model, name, price, description, category_id });
-      console.log("data", resp.data);
     });
   }, []);
-  const onChangeHandler = (
-    e:
-      | ChangeEvent<HTMLInputElement>
-      | ChangeEvent<HTMLTextAreaElement>
-      | ChangeEvent<HTMLSelectElement>
-  ) => {
-    setModel({ ...model, [e.target.name]: e.target.value });
-  };
 
-  const onFileChangeHandler = (e: ChangeEvent<HTMLInputElement>) => {
-    //console.log("files", e.target.files);
-    const { target } = e;
-    if (target.files) {
-      const file = target.files[0];
-      setModel({ ...model, files: [...model.files, file] });
-    }
-  };
-  const onSubmitHandler = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    try {
-      const result = await http_common.put(`api/products/${id}`, model, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      navigator("/");
-    } catch (e: any) {}
-  };
+  const createProductSchema = Yup.object().shape({
+    name: Yup.string().required("Назва обов'язкова"),
+    price: Yup.number().required("Ціна обов'язкова"),
+    category_id: Yup.number().required("Категорія обов'язкова"),
+    description: Yup.string(),
+  });
+
+  const formik = useFormik({
+    initialValues: model,
+    validationSchema: createProductSchema,
+    onSubmit: async (values) => {
+      try {
+        const formData = new FormData();
+        formData.append("name", values.name);
+        formData.append("price", values.price.toString());
+        formData.append("category_id", values.category_id.toString());
+        formData.append("description", values.description);
+
+        for (let i = 0; i < values.files.length; i++) {
+          formData.append("files", values.files[i]);
+        }
+
+        const result = await http_common.put(`api/products/${id}`, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+
+        navigator("/");
+      } catch (error: any) {
+        console.error("Error: ", error);
+      }
+    },
+  });
 
   const filesContent = model.files.map((f, index) => (
     <div key={index} className="mb-4">
@@ -74,8 +79,10 @@ const ProductEditPage = () => {
         to="#"
         onClick={(e) => {
           e.preventDefault();
-          setModel({ ...model, files: model.files.filter((x) => x !== f) });
-          console.log("click delete", f);
+          formik.setFieldValue(
+            "files",
+            model.files.filter((x) => x !== f)
+          );
         }}
       >
         <FaTrash className="m-2 " />
@@ -100,7 +107,10 @@ const ProductEditPage = () => {
         to="#"
         onClick={(e) => {
           e.preventDefault();
-          setModel({ ...model, removeFiles: [...model.removeFiles, product] });
+          formik.setFieldValue(
+            "removeFiles",
+            [...model.removeFiles, product]
+          );
           setOldImages(oldImages.filter((x) => x !== product));
         }}
       >
@@ -123,40 +133,51 @@ const ProductEditPage = () => {
   return (
     <div className="mx-auto max-w-7xl px-6">
       <h1 className="font-medium text-3xl">Зміна товару</h1>
-      <form onSubmit={onSubmitHandler}>
+      <form onSubmit={formik.handleSubmit}>
         <div className="mt-8 grid lg:grid-cols-1 gap-4">
           <InputGroup
             label={"Назва"}
-            value={model.name}
-            onChange={onChangeHandler}
+            value={formik.values.name}
+            handleChange={formik.handleChange}
             field={"name"}
+            error={ formik.errors.name}
+            handleBlur={formik.handleBlur}
           />
 
           <InputGroup
             label={"Ціна"}
-            value={model.price}
-            onChange={onChangeHandler}
+            value={formik.values.price}
+            handleChange={formik.handleChange}
             field={"price"}
             type={"number"}
+            error={formik.errors.price}
+            handleBlur={formik.handleBlur}
           />
 
           <SelectGroup
             label={"Категорія"}
             field={"category_id"}
-            onChange={onChangeHandler}
+            value={formik.values.category_id}
+            onChange={formik.handleChange}
             items={categories}
           />
 
           <TextGroup
             label={"Опис"}
             field={"description"}
-            onChange={onChangeHandler}
+            value={formik.values.description}
+            onChange={formik.handleChange}
             rows={4}
           />
           <InputFileGroup
             label={"Фото"}
             filesContent={filesContent}
-            onChange={onFileChangeHandler}
+            onChange={(e) => {
+              const fileList = e.target.files;
+              if (fileList) {
+                formik.setFieldValue("files", [...fileList]);
+              }
+            }}
             field={"selectImage"}
             filesOldContent={DataProductsOld}
           />

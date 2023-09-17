@@ -1,10 +1,11 @@
 import { useNavigate } from "react-router-dom";
-import { ICategoryCreate } from "./types";
 import { useFormik } from "formik";
-import http_common from "../../../http_common.ts";
+import http_common from "../../../../http_common.ts";
 import { ChangeEvent } from "react";
-import InputGroup from "../../common/InputGroup.tsx";
-import TextGroup from "../../common/TextGroup.tsx";
+import InputGroup from "../../../common/InputGroup.tsx";
+import TextGroup from "../../../common/TextGroup.tsx";
+import { ICategoryCreate } from "../../../category/types.ts";
+import * as Yup from "yup";
 
 const CategoryCreatePage = () => {
   const navigate = useNavigate();
@@ -14,6 +15,12 @@ const CategoryCreatePage = () => {
     image: null,
     description: "",
   };
+
+  const createCategorySchema = Yup.object().shape({
+    name: Yup.string().required("Назва обов'язкова"),
+    image: Yup.mixed().required("Фото обов'язкове"),
+    description: Yup.string(),
+  });
 
   const onFormikSubmit = async (values: ICategoryCreate) => {
     try {
@@ -31,9 +38,18 @@ const CategoryCreatePage = () => {
   const formik = useFormik({
     initialValues: init,
     onSubmit: onFormikSubmit,
+    validationSchema: createCategorySchema, // Apply validation schema
   });
 
-  const { values, handleChange, handleSubmit, setFieldValue } = formik;
+  const {
+    values,
+    handleChange,
+    handleSubmit,
+    setFieldValue,
+    errors,
+    touched,
+    handleBlur,
+  } = formik;
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { target } = e;
@@ -48,7 +64,7 @@ const CategoryCreatePage = () => {
     <>
       <div className="mx-auto text-center">
         <h1 className="text-3xl  font-bold text-black sm:text-4xl">
-          Додати категорій
+          Додати категорію
         </h1>
       </div>
 
@@ -56,8 +72,11 @@ const CategoryCreatePage = () => {
         <InputGroup
           label={"Назва"}
           value={values.name}
-          onChange={handleChange}
           field={"name"}
+          error={errors.name} // Pass error and touched values
+          touched={touched.name}
+          handleBlur={handleBlur}
+          handleChange={handleChange}
         />
 
         <div className="relative z-0 w-full mb-6 group">

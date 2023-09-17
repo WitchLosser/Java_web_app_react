@@ -1,13 +1,13 @@
 import { ChangeEvent, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useFormik } from "formik";
-import { ICategoryEdit } from "./types";
-import http_common from "../../../http_common";
-import { ICategoryItem } from "../list/types";
-import { APP_ENV } from "../../../env";
-import defaultImage from "../../../assets/default-image.jpg";
-import InputGroup from "../../common/InputGroup";
-import TextGroup from "../../common/TextGroup";
+import http_common from "../../../../http_common";
+import { APP_ENV } from "../../../../env";
+import defaultImage from "../../../../assets/default-image.jpg";
+import InputGroup from "../../../common/InputGroup";
+import TextGroup from "../../../common/TextGroup";
+import { ICategoryEdit, ICategoryItem } from "../../../category/types";
+import * as Yup from "yup"; // Import Yup
 
 const CategoryEditPage = () => {
   const navigate = useNavigate();
@@ -21,8 +21,13 @@ const CategoryEditPage = () => {
     description: "",
   };
 
+  const editCategorySchema = Yup.object().shape({
+    name: Yup.string().required("Назва обов'язкова"),
+    image: Yup.mixed(),
+    description: Yup.string(),
+  });
+
   const onFormikSubmit = async (values: ICategoryEdit) => {
-    //console.log("Send Formik Data", values);
     try {
       const result = await http_common.put(`/category/${id}`, values, {
         headers: {
@@ -38,16 +43,15 @@ const CategoryEditPage = () => {
   const formik = useFormik({
     initialValues: init,
     onSubmit: onFormikSubmit,
+    validationSchema: editCategorySchema, // Apply validation schema
   });
 
-  const { values, handleChange, handleSubmit, setFieldValue } = formik;
+  const { values, handleChange, handleSubmit, setFieldValue, errors, touched, handleBlur } = formik;
 
   useEffect(() => {
     http_common.get<ICategoryItem>(`api/categories/${id}`).then((resp) => {
       const { data } = resp;
       setFieldValue("name", data.name);
-      //setFieldValue("image", data.image);
-      //посилання на фото, яке було у категорії
       setOldImage(`${APP_ENV.BASE_URL}/uploading/600_${data.image}`);
       setFieldValue("description", data.description);
     });
@@ -58,7 +62,6 @@ const CategoryEditPage = () => {
     if (files) {
       const file = files[0];
       if (file) {
-        //Перевірка на тип обраного файлу - допустимий тип jpeg, png, gif
         const allowedTypes = [
           "image/jpeg",
           "image/jpg",
@@ -80,7 +83,7 @@ const CategoryEditPage = () => {
     <>
       <div className="mx-auto text-center">
         <h1 className="text-3xl  font-bold text-black sm:text-4xl">
-          Зміна категорій
+          Зміна категорії
         </h1>
       </div>
 
@@ -88,8 +91,11 @@ const CategoryEditPage = () => {
         <InputGroup
           label={"Назва"}
           value={values.name}
-          onChange={handleChange}
+          handleChange ={handleChange}
           field={"name"}
+          error={ errors.name} // Pass error and touched values
+          touched={touched.name}
+          handleBlur={handleBlur}
         />
 
         <div className="relative z-0 w-full mb-6 group">

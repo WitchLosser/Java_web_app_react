@@ -1,80 +1,106 @@
-import { ILoginPage } from "../types";
-import * as yup from "yup";
-import { useFormik } from "formik";
+import { Form, Formik } from "formik";
+import { useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import {
+    AuthUserActionType,
+    ILogin,
+    ILoginResult,
+    IUser,
+} from "../../../entities/Auth.ts";
+import http_common from "../../../http_common.ts";
+import jwtDecode from "jwt-decode";
+import { useState } from "react";
+import * as Yup from "yup";
+import InputGroup from "../../common/InputGroup.tsx";
 
-import InputGroup from "../../common/InputGroup";
+function LoginPage() {
+    const dispatch = useDispatch();
+    const navigate = useNavigate();
 
-const LoginPage = () => {
-  const initValues: ILoginPage = {
-    email: "",
-    password: "",
-  };
+    const initialValues: ILogin = {
+        email: "",
+        password: "",
+    };
 
-  const loginSchema = yup.object({
-    email: yup.string().required("Поле не повинне бути пустим"),
-    password: yup.string().required("Поле не повинне бути пустим"),
-  });
+    const loginSchema = Yup.object().shape({
+        email: Yup.string().required("Email is required").email("Invalid email"),
+        password: Yup.string().required("Password is required"),
+    });
 
-  const onSubmitFormik = (values: ILoginPage) => {
-    console.log("Login form: ", values);
-  };
+    const [message, setMessage] = useState<string>("");
 
-  const formik = useFormik({
-    initialValues: initValues,
-    onSubmit: onSubmitFormik,
-    validationSchema: loginSchema,
-    // validateOnChange: true,
-  });
+    const handleSubmit = async (values: ILogin) => {
+        try {
+            const result = await http_common.post<ILoginResult>(
+                "api/account/login",
+                values,
+            );
+            const { data } = result;
+            const token = data.token;
+            localStorage.token = token;
+            const user = jwtDecode(token) as IUser;
+            dispatch({
+                type: AuthUserActionType.LOGIN_USER,
+                payload: {
+                    sub: user.sub,
+                    email: user.email,
+                    roles: user.roles,
+                },
+            });
+            setMessage("");
+            navigate("/");
+        } catch {
+            setMessage("Invalid email or password");
+        }
+    };
 
-  const { values, handleSubmit, handleChange, touched, errors } = formik;
-  return (
-    <>
-      <div className="flex min-h-full flex-1 flex-col justify-center px-6 py-12 lg:px-8">
-        <div className="sm:mx-auto sm:w-full sm:max-w-sm">
-          <img
-            className="mx-auto h-10 w-auto"
-            src="https://tailwindui.com/img/logos/mark.svg?color=indigo&shade=600"
-            alt="Your Company"
-          />
-          <h2 className="mt-10 text-center text-2xl font-bold leading-9 tracking-tight text-gray-900">
-            Sign in to your account
-          </h2>
-        </div>
+    return (
+        <>
+            <Formik
+                initialValues={initialValues}
+                onSubmit={handleSubmit}
+                validationSchema={loginSchema}
+            >
+                {({ handleChange, errors, touched, handleBlur }) => (
+                    <Form>
+                        <i
+                            className="bi bi-arrow-left-circle-fill back-button"
+                            onClick={() => navigate("..")}
+                        ></i>
+                        {message && (
+                            <div className="alert alert-danger" role="alert">
+                                {message}
+                            </div>
+                        )}
+                        <InputGroup
+                            label="Email"
+                            type="email"
+                            field="email"
+                            handleBlur={handleBlur}
+                            error={errors.email}
+                            touched={touched.email}
+                            handleChange={handleChange}
+                        ></InputGroup>
+                        <InputGroup
+                            label="Password"
+                            type="password"
+                            field="password"
+                            handleBlur={handleBlur}
+                            error={errors.password}
+                            touched={touched.password}
+                            handleChange={handleChange}
+                        ></InputGroup>
+                        <button
+                            type="submit"
+                            className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 mr-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800"
+                        >
+                            Login
+                        </button>
+                    </Form>
+                )}
+            </Formik>
+        </>
+    );
+}
 
-        <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            <InputGroup
-              label={"Email"}
-              field={"email"}
-              value={values.email}
-              onChange={handleChange}
-              type="email"
-            />
-            {touched.email && errors.email && (
-              <div className="text-red-600">{errors.email}</div>
-            )}
-            <InputGroup
-              label={"Password"}
-              field={"password"}
-              value={values.password}
-              onChange={handleChange}
-              type="password"
-            />
-            {touched.password && errors.password && (
-              <div className="text-red-600">{errors.password}</div>
-            )}
-            <div>
-              <button
-                type="submit"
-                className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-              >
-                Sign in
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </>
-  );
-};
 export default LoginPage;

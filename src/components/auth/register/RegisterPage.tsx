@@ -1,110 +1,135 @@
-import { IRegisterPage } from "../types";
-import * as yup from "yup";
-import { useFormik } from "formik";
+import { Form, Formik } from "formik";
+import { useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import * as Yup from "yup";
 import InputGroup from "../../common/InputGroup";
+import http_common from "../../../http_common";
+import jwtDecode from "jwt-decode";
+import { useState } from "react";
+import { AuthUserActionType, IRegister, IUser } from "../../../entities/Auth";
 
-const RegisterPage = () => {
-  const initValues: IRegisterPage = {
+
+function RegisterPage() {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
+  const initialValues: IRegister = {
     email: "",
     password: "",
-    firstname: "",
-    lastname: "",
+    firstName: "",
+    lastName: "",
+    phone: "",
   };
 
-  const registerschema = yup.object({
-    email: yup.string().required("Поле не повинне бути пустим"),
-    firstname: yup.string().required("Поле не повинне бути пустим"),
-    lastname: yup.string().required("Поле не повинне бути пустим"),
-    password: yup
-      .string()
-      .required("Password is required")
-      .min(8, "Password must be at least 8 characters")
-      .max(16, "Password must be at most 16 characters")
-      .matches(/[a-z]/, "Password must contain at least 1 lowercase letter")
-      .matches(/[A-Z]/, "Password must contain at least 1 uppercase letter")
-      .matches(/[0-9]/, "Password must contain at least 1 number")
-      .matches(
-        /[!@#$%^&*(),.?":{}|<>]/,
-        "Password must contain at least 1 special character"
-      ),
+  const registerSchema = Yup.object().shape({
+    email: Yup.string().required("Email is required").email("Invalid email"),
+    password: Yup.string().required("Password is required"),
+    firstName: Yup.string().required("First Name is required"),
+    lastName: Yup.string().required("Last Name is required"),
+    phone: Yup.string().required("Phone number is required"),
   });
 
-  const onSubmitFormik = (values: IRegisterPage) => {
-    console.log("Register form: ", values);
+  const [message, setMessage] = useState<string>("");
+
+  const handleSubmit = async (values: IRegister) => {
+    try {
+      const result = await http_common.post<{ token: string }>(
+        "api/account/register",
+        values
+      );
+      const { data } = result;
+      const token = data.token;
+      localStorage.token = token;
+      const user = jwtDecode(token) as IUser;
+      dispatch({
+        type: AuthUserActionType.LOGIN_USER,
+        payload: {
+          sub: user.sub,
+          email: user.email,
+          roles: user.roles,
+        },
+      });
+      setMessage("");
+      navigate("/");
+    } catch {
+      setMessage("Registration failed");
+    }
   };
 
-  const formik = useFormik({
-    initialValues: initValues,
-    onSubmit: onSubmitFormik,
-    validationSchema: registerschema,
-    // validateOnChange: true,
-  });
-
-  const { values, handleSubmit, handleChange, touched, errors } = formik;
   return (
     <>
-      <div className="flex min-h-full flex-1 flex-col justify-center px-6 py-12 lg:px-8">
-        <div className="sm:mx-auto sm:w-full sm:max-w-sm">
-          <img
-            className="mx-auto h-10 w-auto"
-            src="https://tailwindui.com/img/logos/mark.svg?color=indigo&shade=600"
-            alt="Your Company"
-          />
-          <h2 className="mt-10 text-center text-2xl font-bold leading-9 tracking-tight text-gray-900">
-            Sign up to your account
-          </h2>
-        </div>
-        <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            <InputGroup
-              label={"First Name"}
-              field={"firstname"}
-              value={values.firstname}
-              onChange={handleChange}
-            />
-            {touched.firstname && errors.firstname && (
-              <div className="text-red-600">{errors.firstname}</div>
+      <Formik
+        initialValues={initialValues}
+        onSubmit={handleSubmit}
+        validationSchema={registerSchema}
+      >
+        {({ handleChange, errors, touched, handleBlur }) => (
+          <Form>
+            <i
+              className="bi bi-arrow-left-circle-fill back-button"
+              onClick={() => navigate("..")}
+            ></i>
+            {message && (
+              <div className="alert alert-danger" role="alert">
+                {message}
+              </div>
             )}
             <InputGroup
-              label={"Last Name"}
-              field={"lastname"}
-              value={values.lastname}
-              onChange={handleChange}
-            />
-            {touched.lastname && errors.lastname && (
-              <div className="text-red-600">{errors.lastname}</div>
-            )}
-            <InputGroup
-              label={"Email"}
-              field={"email"}
-              onChange={handleChange}
+              label="Email"
               type="email"
+              field="email"
+              handleBlur={handleBlur}
+              error={errors.email}
+              touched={touched.email}
+              handleChange={handleChange}
             />
-            {touched.email && errors.email && (
-              <div className="text-red-600">{errors.email}</div>
-            )}
             <InputGroup
-              label={"Password"}
-              field={"password"}
-              onChange={handleChange}
+              label="Password"
               type="password"
+              field="password"
+              handleBlur={handleBlur}
+              error={errors.password}
+              touched={touched.password}
+              handleChange={handleChange}
             />
-            {touched.password && errors.password && (
-              <div className="text-red-600">{errors.password}</div>
-            )}
-
-            <div>
-              <button
-                type="submit"
-                className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-              >
-                Sign in
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
+            <InputGroup
+              label="First Name"
+              type="text"
+              field="firstName"
+              handleBlur={handleBlur}
+              error={errors.firstName}
+              touched={touched.firstName}
+              handleChange={handleChange}
+            />
+            <InputGroup
+              label="Last Name"
+              type="text"
+              field="lastName"
+              handleBlur={handleBlur}
+              error={errors.lastName}
+              touched={touched.lastName}
+              handleChange={handleChange}
+            />
+            <InputGroup
+              label="Phone"
+              type="text"
+              field="phone"
+              handleBlur={handleBlur}
+              error={errors.phone}
+              touched={touched.phone}
+              handleChange={handleChange}
+            />
+            <button
+              type="submit"
+              className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 mr-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800"
+            >
+              Register
+            </button>
+          </Form>
+        )}
+      </Formik>
     </>
   );
-};
+}
+
 export default RegisterPage;
