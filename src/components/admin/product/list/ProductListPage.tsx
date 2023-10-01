@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { IProductItem } from "../../../product/types";
+import { IProductItem } from "../../../../entities/Product";
 import http_common from "../../../../http_common";
 import ListGroup from "../../../common/ListGroup";
 
@@ -9,25 +9,48 @@ const ProductListPage = () => {
 
   useEffect(() => {
     http_common
-      .get<Array<IProductItem>>(`api/products`)
+      .get("api/products", {
+        headers: {
+          Authorization: `Bearer ${localStorage.token}`,
+        },
+      })
       .then((resp) => {
-        console.log("resp = ", resp);
         setList(resp.data);
       });
   }, []);
   console.log("List data: ", list);
 
-  const DeleteProductHandler = (id: number | string | undefined) => {
-    http_common
-      .delete(`api/products/${id}`)
-      .then((resp) => {
-        setList(list.filter((x) => x.id !== id));
-      });
+  const handleDelete = async (id: number) => {
+    try {
+      await http_common
+        .delete(`api/products/${id}`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.token}`,
+          },
+        })
+        .then(() => {
+          http_common
+            .get("api/products", {
+              headers: {
+                Authorization: `Bearer ${localStorage.token}`,
+              },
+            })
+            .then((resp) => {
+              setList(resp.data);
+            });
+        });
+    } catch (error) {
+      console.error("Error deleting product:", error);
+    }
   };
 
   return (
     <>
-    <ListGroup label={"Товарів"} DeleteProductHandler={DeleteProductHandler} items={list}/>
+      <ListGroup
+        label={"Товарів"}
+        DeleteProductHandler={handleDelete}
+        items={list}
+      />
     </>
   );
 };

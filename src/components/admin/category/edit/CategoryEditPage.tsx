@@ -1,83 +1,92 @@
-import { ChangeEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useFormik } from "formik";
+import { Form, Formik } from "formik";
 import http_common from "../../../../http_common";
-import { APP_ENV } from "../../../../env";
-import defaultImage from "../../../../assets/default-image.jpg";
 import InputGroup from "../../../common/InputGroup";
-import TextGroup from "../../../common/TextGroup";
-import { ICategoryEdit, ICategoryItem } from "../../../category/types";
+import { ICategoryEdit, ICategoryItem } from "../../../../entities/Category";
 import * as Yup from "yup"; // Import Yup
+import TextAreaGroup from "../../../common/TextAreaGroup";
+import ImageGroup from "../../../common/ImageGroup";
 
 const CategoryEditPage = () => {
   const navigate = useNavigate();
+
   const { id } = useParams();
-  const [oldImage, setOldImage] = useState<string>("");
 
-  const init: ICategoryEdit = {
-    id: id ? Number(id) : 0,
+  const [categories, setCategories] = useState<ICategoryItem[]>([]);
+
+  const [initialValues, setInitialValues] = useState<ICategoryEdit>({
     name: "",
-    image: null,
     description: "",
-  };
-
-  const editCategorySchema = Yup.object().shape({
-    name: Yup.string().required("Назва обов'язкова"),
-    image: Yup.mixed(),
-    description: Yup.string(),
+    image: null,
   });
 
-  const onFormikSubmit = async (values: ICategoryEdit) => {
+  useEffect(() => {
+    http_common
+      .get("api/categories", {
+        headers: {
+          Authorization: `Bearer ${localStorage.token}`,
+        },
+      })
+      .then((resp) => {
+        setCategories(resp.data);
+      });
+    http_common
+      .get(`api/categories/${id}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.token}`,
+        },
+      })
+      .then(async (resp) => {
+        const response = await http_common.get(
+          `/uploading/600_${resp.data.image}`,
+          {
+            responseType: "blob",
+          }
+        );
+        const blob = response.data;
+        setInitialValues((prevValues) => ({
+          ...prevValues,
+          name: resp.data.name,
+          description: resp.data.description,
+          image: new File([blob], resp.data.image),
+        }));
+      });
+  }, []);
+
+  const categorySchema = Yup.object().shape({
+    name: Yup.string()
+      .required("Name is required")
+      .max(255, "Name must be smaller")
+      .test("unique-category", "Category already exists", function (value) {
+        if (!value) {
+          return false;
+        }
+        const categoryExists = categories.some(
+          (c: ICategoryItem) =>
+            c.name.toLowerCase() === value.toLowerCase() && c.id !== Number(id)
+        );
+        return !categoryExists;
+      }),
+    description: Yup.string()
+      .required("Description is required")
+      .max(4000, "Description must be smaller"),
+    image: Yup.mixed().required("Image is required"),
+  });
+
+  const handleSubmit = async (values: ICategoryEdit) => {
     try {
-      const result = await http_common.put(`/category/${id}`, values, {
+      await categorySchema.validate(values);
+      await http_common.put(`api/categories/${id}`, values, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
       });
-      navigate("/");
-    } catch {
-      console.log("Server error");
+      navigate("..");
+    } catch (error) {
+      console.error("Error editing category:", error);
     }
   };
-
-  const formik = useFormik({
-    initialValues: init,
-    onSubmit: onFormikSubmit,
-    validationSchema: editCategorySchema, // Apply validation schema
-  });
-
-  const { values, handleChange, handleSubmit, setFieldValue, errors, touched, handleBlur } = formik;
-
-  useEffect(() => {
-    http_common.get<ICategoryItem>(`api/categories/${id}`).then((resp) => {
-      const { data } = resp;
-      setFieldValue("name", data.name);
-      setOldImage(`${APP_ENV.BASE_URL}/uploading/600_${data.image}`);
-      setFieldValue("description", data.description);
-    });
-  }, [id]);
-
-  const onChangeFileHandler = (e: ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files) {
-      const file = files[0];
-      if (file) {
-        const allowedTypes = [
-          "image/jpeg",
-          "image/jpg",
-          "image/png",
-          "image/gif",
-        ];
-        if (!allowedTypes.includes(file.type)) {
-          alert("Не допустимий тип файлу");
-          return;
-        }
-        setFieldValue(e.target.name, file);
-      }
-    }
-  };
-
-  const imgView = oldImage ? oldImage : defaultImage;
 
   return (
     <>
@@ -87,56 +96,60 @@ const CategoryEditPage = () => {
         </h1>
       </div>
 
-      <form onSubmit={handleSubmit}>
-        <InputGroup
-          label={"Назва"}
-          value={values.name}
-          handleChange ={handleChange}
-          field={"name"}
-          error={ errors.name} // Pass error and touched values
-          touched={touched.name}
-          handleBlur={handleBlur}
-        />
+      <Formik
+        initialValues={initialValues}
+        onSubmit={handleSubmit}
+        validationSchema={categorySchema}
+        enableReinitialize={true}
+      >
+        {({
+          handleChange,
+          values,
+          errors,
+          touched,
+          setFieldValue,
+          handleBlur,
+        }) => (
+          <Form>
+            <i
+              className="bi bi-arrow-left-circle-fill back-button"
+              onClick={() => navigate("..")}
+            ></i>
+            <InputGroup
+              label="Name"
+              type="text"
+              field="name"
+              handleBlur={handleBlur}
+              error={errors.name}
+              touched={touched.name}
+              handleChange={handleChange}
+              value={values.name}
+            ></InputGroup>
+            <TextAreaGroup
+              label="Description"
+              field="description"
+              handleChange={handleChange}
+              error={errors.description}
+              touched={touched.description}
+              handleBlur={handleBlur}
+              value={values.description}
+            ></TextAreaGroup>
+            <ImageGroup
+              image={values.image}
+              setFieldValue={setFieldValue}
+              error={errors.image}
+              touched={touched.image}
+            ></ImageGroup>
 
-        <div className="relative z-0 w-full mb-6 group">
-          <label htmlFor="image" className={"cursor-pointer"}>
-            <span className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
-              Фото
-            </span>
-            <img
-              className="h-36 rounded-lg object-fit-contain  shadow-xl shadow-blue-gray-900/50"
-              src={
-                values.image == null
-                  ? imgView
-                  : URL.createObjectURL(values?.image)
-              }
-              alt="nature image"
-            />
-          </label>
-
-          <input
-            type="file"
-            id={"image"}
-            name={"image"}
-            className="hidden"
-            onChange={onChangeFileHandler}
-          />
-        </div>
-
-        <TextGroup
-          label={"Опис"}
-          field={"description"}
-          onChange={handleChange}
-          rows={4}
-        />
-
-        <button
-          type="submit"
-          className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm w-full sm:w-auto px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
-        >
-          Змінити
-        </button>
-      </form>
+            <button
+              type="submit"
+              className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm w-full sm:w-auto px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+            >
+              Змінити
+            </button>
+          </Form>
+        )}
+      </Formik>
     </>
   );
 };

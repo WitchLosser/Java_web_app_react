@@ -2,31 +2,43 @@ import {useEffect, useState} from "react";
 import {Link} from "react-router-dom";
 import { APP_ENV } from "../../../../env/index.ts";
 import ModalDelete from "../../../common/ModalDelete.tsx";
-import { ICategoryItem } from "../../../category/types.ts";
 import http_common from "../../../../http_common.ts";
-// import ModalDelete from "../../../common/ModalDelete.tsx";
+import { ICategoryItem } from "../../../../entities/Category.ts";
+
 
 const CategoryListPage = () => {
     const [list, setList] = useState<ICategoryItem[]>([]);
 
-    const getData = () => {
-        http_common
-            .get<ICategoryItem[]>("api/categories")
-            .then((resp) => {
-                //console.log("Categories", resp.data);
-                setList(resp.data);
-            });
-    }
     useEffect(() => {
-        getData();
+        http_common
+        .get("api/categories", {
+          headers: {
+            Authorization: `Bearer ${localStorage.token}`,
+          },
+        })
+        .then((resp) => {
+            setList(resp.data);
+        });
     }, []);
 
-    const DeleteCategoryHandler = (id: number | string | undefined) => {
-        http_common
-          .delete(`api/categories/${id}`)
-          .then((resp) => {
-            setList(list.filter((x) => x.id !== id));
-          });
+    const handleDelete = async (id: number) => {
+        await http_common
+        .delete(`api/categories/${id}`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.token}`,
+          },
+        })
+        .then(() => {
+          http_common
+            .get("api/categories", {
+              headers: {
+                Authorization: `Bearer ${localStorage.token}`,
+              },
+            })
+            .then((resp) => {
+              setList(resp.data);
+            });
+        });
       };
 
     const content = list.map((c) => {
@@ -48,8 +60,7 @@ const CategoryListPage = () => {
                 <Link to={`category/edit/${c.id}`} className="bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white py-2 px-4 border border-blue-500 hover:border-transparent rounded">Змінить</Link>
                 <ModalDelete
           id={c.id}
-          deleteFunc={DeleteCategoryHandler}
-          title="Видалення товара"
+          deleteFunc={handleDelete}
           text={`Ви дійсно бажаєте видалити категорію '${c.name}'?`}
         />
           &nbsp; &nbsp;
@@ -63,7 +74,7 @@ const CategoryListPage = () => {
             <div className="mx-auto text-center">
                 <h1 className="text-3xl  font-bold text-black sm:text-5xl">Список категорій</h1>
             </div>
-            <Link to="/create"
+            <Link to="/category/create"
                   className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 border border-green-700 rounded">
                 Додати
             </Link>

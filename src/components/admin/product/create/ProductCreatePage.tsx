@@ -1,34 +1,38 @@
-import { ChangeEvent, useEffect, useState } from "react";
-import { FaTrash } from "react-icons/fa";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useFormik } from "formik";
 import * as Yup from "yup"; // Import Yup
 import http_common from "../../../../http_common";
 import InputGroup from "../../../common/InputGroup";
 import SelectGroup from "../../../common/SelectGroup";
-import TextGroup from "../../../common/TextGroup";
 import InputFileGroup from "../../../common/InputFileGroup";
-import { ICategoryItem } from "../../../category/types";
-import { IPorductCreate, IProductItem } from "../../../product/types";
+import { ICategoryItem } from "../../../../entities/Category";
+import { IPorductCreate, IProductItem } from "../../../../entities/Product";
+import EditorTiny from "../../../common/EditorTiny";
 
 const ProductCreatePage = () => {
   const navigator = useNavigate();
 
-  const [model, setModel] = useState<IPorductCreate>({
+  const model: IPorductCreate = {
     name: "",
     description: "",
     files: [],
     price: 0,
     category_id: 1,
-  });
+  };
 
   const [categories, setCategories] = useState<Array<ICategoryItem>>([]);
 
   useEffect(() => {
-    http_common.get<Array<ICategoryItem>>(`/category`).then((resp) => {
-      console.log("resp = ", resp);
-      setCategories(resp.data);
-    });
+    http_common
+      .get("api/categories", {
+        headers: {
+          Authorization: `Bearer ${localStorage.token}`,
+        },
+      })
+      .then((resp) => {
+        setCategories(resp.data);
+      });
   }, []);
 
   const createProductSchema = Yup.object().shape({
@@ -57,7 +61,10 @@ const ProductCreatePage = () => {
           `api/products`,
           formData,
           {
-            headers: { "Content-Type": "multipart/form-data" },
+            headers: {
+              "Content-Type": "multipart/form-data",
+              Authorization: `Bearer ${localStorage.token}`,
+            },
           }
         );
 
@@ -68,36 +75,6 @@ const ProductCreatePage = () => {
       }
     },
   });
-
-  const filesContent = model.files.map((f, index) => (
-    <div key={index} className="mb-4">
-      <Link
-        to="#"
-        onClick={(e) => {
-          e.preventDefault();
-          setModel((prevModel) => {
-            const newFiles = [...prevModel.files];
-            newFiles.splice(index, 1);
-            return { ...prevModel, files: newFiles };
-          });
-          console.log("click delete", f);
-        }}
-      >
-        <FaTrash className="m-2 " />
-      </Link>
-      <div className="relative">
-        <div style={{ height: "150px" }}>
-          <div className="picture-main">
-            <img
-              src={URL.createObjectURL(f)}
-              className="picture-container"
-              alt=""
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  ));
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -130,24 +107,22 @@ const ProductCreatePage = () => {
             items={categories}
           />
 
-          <TextGroup
-            label={"Опис"}
-            field={"description"}
-            onChange={formik.handleChange}
-            rows={4}
-          />
-          <InputFileGroup
-            label={"Фото"}
-            filesContent={filesContent}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => {
-              const fileList = e.target.files;
-              if (fileList) {
-                formik.setFieldValue("files", [...fileList]);
-              }
+          <EditorTiny
+            label="Description"
+            field="description"
+            onEditorChange={(text: string) => {
+              formik.setFieldValue("description", text);
             }}
-            field={"files"}
-            filesOldContent={null}
-          />
+            error={formik.errors.description}
+            touched={formik.touched.description}
+            value={formik.values.description}
+          ></EditorTiny>
+          <InputFileGroup
+            images={formik.values.files}
+            setFieldValue={formik.setFieldValue}
+            error={formik.errors.files}
+            touched={formik.touched.files}
+          ></InputFileGroup>
         </div>
         <div className="space-x-4 mt-8">
           <button

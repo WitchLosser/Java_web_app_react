@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ICategoryItem } from "../components/category/types";
+import { ICategoryItem } from "../entities/Category";
 import { APP_ENV } from "../env";
 import http_common from "../http_common";
 

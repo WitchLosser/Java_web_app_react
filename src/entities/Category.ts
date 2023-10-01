@@ -4,7 +4,6 @@ export interface ICategoryCreate{
     description: string;
 }
 export interface ICategoryEdit{
-    id: number;
     name: string;
     image: File | null;
     description: string;

@@ -7,12 +7,6 @@ import { useDispatch } from 'react-redux'
 import { Bars3Icon } from '@heroicons/react/24/outline'
 import { AuthUserActionType, IAuthUser } from '../../../entities/Auth'
 
-
-
-function classNames(...classes: any) {
-  return classes.filter(Boolean).join(' ')
-}
-
 const AdminHeader = () => {
   const navigate = useNavigate();
 

@@ -1,12 +1,12 @@
 import { FC } from "react";
-import { IProductItem } from "../product/types";
+import { IProductItem } from "../../entities/Product";
 import { Link } from "react-router-dom";
 import { APP_ENV } from "../../env";
 import ModalDelete from "./ModalDelete";
 
 interface ListGroupProps {
   label: string;
-  DeleteProductHandler: (id: number | string | undefined) => void;
+  DeleteProductHandler: (id: number) => void;
   items: IProductItem[];
   // error?: string|undefined,
   // touched?: boolean|undefined
@@ -26,7 +26,7 @@ const ListGroup: FC<ListGroupProps> = ({
           <div className="relative h-80 w-full overflow-hidden rounded-lg bg-white group-hover:opacity-75 sm:aspect-w-2 sm:aspect-h-1 sm:h-64 lg:aspect-w-1 lg:aspect-h-1">
             <div className="picture-main">
               <img
-                src={`${APP_ENV.BASE_URL}/uploading/600_${item.files[0]}`}
+                src={`${APP_ENV.BASE_URL}/uploading/600_${item.images[0]}`}
                 alt={item.name}
                 className="picture-container"
               />
@@ -54,7 +54,6 @@ const ListGroup: FC<ListGroupProps> = ({
         <ModalDelete
           id={item.id}
           deleteFunc={DeleteProductHandler}
-          title="Видалення товара"
           text={`Ви дійсно бажаєте видалити товар '${item.name}'?`}
         />
       </div>

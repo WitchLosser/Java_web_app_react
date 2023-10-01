@@ -1,11 +1,11 @@
 import { useNavigate } from "react-router-dom";
 import { useFormik } from "formik";
 import http_common from "../../../../http_common.ts";
-import { ChangeEvent } from "react";
 import InputGroup from "../../../common/InputGroup.tsx";
-import TextGroup from "../../../common/TextGroup.tsx";
-import { ICategoryCreate } from "../../../category/types.ts";
+import { ICategoryCreate } from "../../../../entities/Category.ts";
 import * as Yup from "yup";
+import TextAreaGroup from "../../../common/TextAreaGroup.tsx";
+import ImageGroup from "../../../common/ImageGroup.tsx";
 
 const CategoryCreatePage = () => {
   const navigate = useNavigate();
@@ -27,6 +27,7 @@ const CategoryCreatePage = () => {
       await http_common.post("api/categories", values, {
         headers: {
           "Content-Type": "multipart/form-data",
+          Authorization: `Bearer ${localStorage.token}`,
         },
       });
       navigate("/");
@@ -51,15 +52,6 @@ const CategoryCreatePage = () => {
     handleBlur,
   } = formik;
 
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const { target } = e;
-    const { files } = target;
-    if (files) {
-      const file = files[0];
-      setFieldValue(target.name, file);
-    }
-    target.value = "";
-  };
   return (
     <>
       <div className="mx-auto text-center">
@@ -70,46 +62,28 @@ const CategoryCreatePage = () => {
 
       <form onSubmit={handleSubmit}>
         <InputGroup
-          label={"Назва"}
-          value={values.name}
-          field={"name"}
-          error={errors.name} // Pass error and touched values
-          touched={touched.name}
+          label="Name"
+          type="text"
+          field="name"
           handleBlur={handleBlur}
+          error={errors.name}
+          touched={touched.name}
           handleChange={handleChange}
-        />
-
-        <div className="relative z-0 w-full mb-6 group">
-          <label htmlFor="image" className={"cursor-pointer"}>
-            <span className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
-              Фото
-            </span>
-            <img
-              className="h-36 rounded-lg object-fit-contain  shadow-xl shadow-blue-gray-900/50"
-              src={
-                values.image == null
-                  ? "https://upload.wikimedia.org/wikipedia/commons/d/d1/Image_not_available.png"
-                  : URL.createObjectURL(values?.image)
-              }
-              alt="nature image"
-            />
-          </label>
-
-          <input
-            type="file"
-            id={"image"}
-            name={"image"}
-            className="hidden"
-            onChange={handleFileChange}
-          />
-        </div>
-
-        <TextGroup
-          label={"Опис"}
-          field={"description"}
-          onChange={handleChange}
-          rows={4}
-        />
+        ></InputGroup>
+        <TextAreaGroup
+          label="Description"
+          field="description"
+          handleChange={handleChange}
+          error={errors.description}
+          touched={touched.description}
+          handleBlur={handleBlur}
+        ></TextAreaGroup>
+        <ImageGroup
+          image={values.image}
+          setFieldValue={setFieldValue}
+          error={errors.image}
+          touched={touched.image}
+        ></ImageGroup>
 
         <button
           type="submit"

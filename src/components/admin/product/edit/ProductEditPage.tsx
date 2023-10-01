@@ -1,16 +1,15 @@
 import { useEffect, useState } from "react";
-import { FaTrash } from "react-icons/fa";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import http_common from "../../../../http_common";
 import InputGroup from "../../../common/InputGroup";
 import SelectGroup from "../../../common/SelectGroup";
 import InputFileGroup from "../../../common/InputFileGroup";
-import TextGroup from "../../../common/TextGroup";
-import { ICategoryItem } from "../../../category/types";
-import { IPorductEdit, IProductItem } from "../../../product/types";
-import { APP_ENV } from "../../../../env";
+import { ICategoryItem } from "../../../../entities/Category";
+import { IPorductEdit } from "../../../../entities/Product";
+import { IProductImage } from "../../../../entities/ProductImage";
+import EditorTiny from "../../../common/EditorTiny";
 
 const ProductEditPage = () => {
   const navigator = useNavigate();
@@ -25,18 +24,55 @@ const ProductEditPage = () => {
     removeFiles: [],
   });
 
-  const [oldImages, setOldImages] = useState<string[]>([]);
+  async function downloadAndConvertImages(images: string[]): Promise<File[]> {
+    const files: File[] = [];
+    for (const image of images) {
+      const file = await downloadImage(image);
+      files.push(file);
+    }
+    return files;
+  }
+
+  async function downloadImage(filename: string): Promise<File> {
+    const response = await http_common.get(`/uploading/600_${filename}`, {
+      responseType: "blob",
+    });
+    const blob = response.data;
+    return new File([blob], filename);
+  }
+
   const [categories, setCategories] = useState<Array<ICategoryItem>>([]);
 
   useEffect(() => {
-    http_common.get<Array<ICategoryItem>>(`api/categories`).then((resp) => {
+    http_common
+    .get("api/categories", {
+      headers: {
+        Authorization: `Bearer ${localStorage.token}`,
+      },
+    })
+    .then((resp) => {
       setCategories(resp.data);
     });
+  http_common
+    .get(`api/products/${id}`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.token}`,
+      },
+    })
+    .then((resp) => {
+      const images = resp.data.images.map(
+        (image: IProductImage) => `${image.image}`,
+      );
 
-    http_common.get<IProductItem>(`api/products/${id}`).then((resp) => {
-      const { files, name, price, category_id, description } = resp.data;
-      setOldImages(files);
-      setModel({ ...model, name, price, description, category_id });
+      downloadAndConvertImages(images).then((files) => {
+        setModel((prevValues) => ({
+          ...prevValues,
+          name: resp.data.name,
+          description: resp.data.description,
+          categoryId: resp.data.categoryId,
+          images: files,
+        }));
+      });
     });
   }, []);
 
@@ -62,8 +98,8 @@ const ProductEditPage = () => {
           formData.append("files", values.files[i]);
         }
 
-        const result = await http_common.put(`api/products/${id}`, formData, {
-          headers: { "Content-Type": "multipart/form-data" },
+        await http_common.put(`api/products/${id}`, formData, {
+          headers: { "Content-Type": "multipart/form-data", Authorization: `Bearer ${localStorage.token}`, },
         });
 
         navigator("/");
@@ -72,63 +108,6 @@ const ProductEditPage = () => {
       }
     },
   });
-
-  const filesContent = model.files.map((f, index) => (
-    <div key={index} className="mb-4">
-      <Link
-        to="#"
-        onClick={(e) => {
-          e.preventDefault();
-          formik.setFieldValue(
-            "files",
-            model.files.filter((x) => x !== f)
-          );
-        }}
-      >
-        <FaTrash className="m-2 " />
-      </Link>
-      <div className="relative">
-        <div style={{ height: "150px" }}>
-          <div className="picture-main">
-            <img
-              src={URL.createObjectURL(f)}
-              className="picture-container"
-              alt=""
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  ));
-
-  const DataProductsOld = oldImages.map((product, index) => (
-    <div key={index} className="mb-4">
-      <Link
-        to="#"
-        onClick={(e) => {
-          e.preventDefault();
-          formik.setFieldValue(
-            "removeFiles",
-            [...model.removeFiles, product]
-          );
-          setOldImages(oldImages.filter((x) => x !== product));
-        }}
-      >
-        <FaTrash className="m-2 " />
-      </Link>
-      <div className="relative">
-        <div style={{ height: "150px" }}>
-          <div className="picture-main">
-            <img
-              src={`${APP_ENV.BASE_URL}/uploading/300_${product}`}
-              className="picture-container"
-              alt=""
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  ));
 
   return (
     <div className="mx-auto max-w-7xl px-6">
@@ -140,7 +119,7 @@ const ProductEditPage = () => {
             value={formik.values.name}
             handleChange={formik.handleChange}
             field={"name"}
-            error={ formik.errors.name}
+            error={formik.errors.name}
             handleBlur={formik.handleBlur}
           />
 
@@ -162,25 +141,22 @@ const ProductEditPage = () => {
             items={categories}
           />
 
-          <TextGroup
-            label={"Опис"}
-            field={"description"}
-            value={formik.values.description}
-            onChange={formik.handleChange}
-            rows={4}
-          />
-          <InputFileGroup
-            label={"Фото"}
-            filesContent={filesContent}
-            onChange={(e) => {
-              const fileList = e.target.files;
-              if (fileList) {
-                formik.setFieldValue("files", [...fileList]);
-              }
+          <EditorTiny
+            label="Description"
+            field="description"
+            onEditorChange={(text: string) => {
+              formik.setFieldValue("description", text);
             }}
-            field={"selectImage"}
-            filesOldContent={DataProductsOld}
-          />
+            error={formik.errors.description}
+            touched={formik.touched.description}
+            value={formik.values.description}
+          ></EditorTiny>
+          <InputFileGroup
+            images={formik.values.files}
+            setFieldValue={formik.setFieldValue}
+            error={formik.errors.files}
+            touched={formik.touched.files}
+          ></InputFileGroup>
         </div>
         <div className="space-x-4 mt-8">
           <button
@@ -189,7 +165,7 @@ const ProductEditPage = () => {
           >
             Save
           </button>
-          <button className="py-2 px-4 bg-white border border-gray-200 text-gray-600 rounded hover:bg-gray-100 active:bg-gray-200 disabled:opacity-50">
+          <button onClick={()=>{navigator("/");}} className="py-2 px-4 bg-white border border-gray-200 text-gray-600 rounded hover:bg-gray-100 active:bg-gray-200 disabled:opacity-50">
             Cancel
           </button>
         </div>
